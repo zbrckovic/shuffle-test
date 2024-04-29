@@ -3,7 +3,7 @@ import { PauseIcon, PlayIcon, StopIcon } from '@heroicons/react/24/solid'
 import { convertShuffleToRNG, createOverhandShuffle, createRiffleShuffle, Shuffle } from './shuffle'
 import { factorial } from './utils'
 
-const deckSize = 9
+const deckSize = 10
 const permutationCount = factorial(deckSize)
 const canvasSize = Math.ceil(Math.sqrt(permutationCount))
 console.log(`Deck size: ${deckSize}`)
@@ -87,7 +87,7 @@ export const Page: FC = () => {
                     <StopIcon className='w-6' />
                 </button>
                 <div className='ms-auto w-56'>
-                    <label className='font-bold'>Dot count:</label> <span>{dotCount}</span>
+                    <label className='font-bold'>Shuffle count:</label> <span>{dotCount}</span>
                 </div>
             </div>
             <canvas

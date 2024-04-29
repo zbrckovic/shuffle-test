@@ -1,4 +1,5 @@
 import { encodePermutation } from '../permutation-encoder'
+import { createRiffleShuffle } from '../shuffle'
 
 test.each([
     [[0, 1, 2, 3], 0],
@@ -29,4 +30,14 @@ test.each([
 ('.encodePermutation(%s) gives %s', (permutation, expectedCode) => {
     const code = encodePermutation(permutation)
     expect(code).toBe(expectedCode)
+})
+
+describe('riffleShuffle', () => {
+    it('produces some permutation with valid elements', () => {
+        const shuffle = createRiffleShuffle()
+        const initialDeck = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        const result = shuffle(initialDeck)
+        expect(result.length).toBe(initialDeck.length)
+        expect(new Set(result)).toEqual(new Set(initialDeck))
+    })
 })

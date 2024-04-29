@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+    "module": "CommonJS",
+    "strict": true,
+    "jsx": "react",
+    "baseUrl": "src",
+    "target": "es5",
+    "moduleResolution": "node",
+    "lib": [
+      "es2017",
+      "dom"
+    ],
+    "typeRoots": [
+      "src/global.d.ts"
+    ]
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/*.test.ts"
+  ]
+}

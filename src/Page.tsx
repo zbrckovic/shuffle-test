@@ -65,7 +65,7 @@ export const Page: FC = () => {
                     value={shuffleName}
                     onChange={({ target: { value } }) => {
                         stop()
-                        setShuffleName(value)
+                        setShuffleName(value as ShuffleName)
                     }}
                 >
                     {

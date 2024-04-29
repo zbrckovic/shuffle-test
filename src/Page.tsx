@@ -1,10 +1,14 @@
 import React, { FC, useCallback, useEffect, useState } from 'react'
 import { PauseIcon, PlayIcon, StopIcon } from '@heroicons/react/24/solid'
 import { convertShuffleToRNG, createOverhandShuffle, createRiffleShuffle, Shuffle } from './shuffle'
+import { factorial } from './utils'
 
-const CANVAS_WIDTH = 1024
-const CANVAS_HEIGHT = 768
-const N = 10
+const deckSize = 9
+const permutationCount = factorial(deckSize)
+const canvasSize = Math.ceil(Math.sqrt(permutationCount))
+console.log(`Deck size: ${deckSize}`)
+console.log(`Permutations: ${permutationCount}`)
+console.log(`Canvas size: ${canvasSize}`)
 
 type ShuffleName = 'Riffle' | 'Overhand'
 
@@ -23,7 +27,7 @@ export const Page: FC = () => {
     const clearCanvas = useCallback(() => {
         if (ctx === undefined) return
         ctx.fillStyle = 'white'
-        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
+        ctx.fillRect(0, 0, canvasSize, canvasSize)
     }, [ctx])
 
     const stop = useCallback(() => {
@@ -44,12 +48,11 @@ export const Page: FC = () => {
         if (!playing) return
 
         const shuffle = shuffleAlgorithms[shuffleName]
-        const rng = convertShuffleToRNG(shuffle, N)
+        const rng = convertShuffleToRNG(shuffle, deckSize)
 
         const intervalId = setInterval(() => {
             const n = rng()
-            const x = n % CANVAS_WIDTH
-            const y = Math.floor(n / CANVAS_WIDTH)
+            const [x, y] = convertNumberToCoords(n)
             drawPixelDot(x, y)
             setDotCount(prev => prev + 1)
         })
@@ -83,14 +86,14 @@ export const Page: FC = () => {
                 <button className='btn' onClick={stop}>
                     <StopIcon className='w-6' />
                 </button>
-                <div className='ms-auto'>
+                <div className='ms-auto w-56'>
                     <label className='font-bold'>Dot count:</label> <span>{dotCount}</span>
                 </div>
             </div>
             <canvas
                 className='border-solid border border-black'
-                width={CANVAS_WIDTH}
-                height={CANVAS_HEIGHT}
+                width={canvasSize}
+                height={canvasSize}
                 ref={canvas => {
                     if (canvas === null) return
                     const ctx = canvas.getContext('2d')
@@ -100,4 +103,10 @@ export const Page: FC = () => {
             />
         </div>
     </div>
+}
+
+const convertNumberToCoords = (n: number): [number, number] => {
+    const x = n % canvasSize
+    const y = Math.floor(n / canvasSize)
+    return [x, y]
 }

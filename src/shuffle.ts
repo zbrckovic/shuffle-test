@@ -4,27 +4,30 @@ export const createOverhandShuffle = (): Shuffle => (permutation => {
     return permutation
 })
 
-export const createRiffleShuffle = (): Shuffle => (permutation => {
-    return permutation
-})
+export const createRiffleShuffle = (): Shuffle => {
+
+    return (permutation => {
+        return permutation
+    })
+}
 
 export const convertShuffleToRNG = (shuffle: Shuffle, n: number): RNG => {
-    const startingPermutation = createStartingPermutation(n)
+    const startingDeck = createStartingDeck(n)
 
     return () => {
-        const shuffledPermutation = shuffle(startingPermutation)
-        return encodePermutation(shuffledPermutation)
+        const shuffledDeck = shuffle(startingDeck)
+        return encodePermutation(shuffledDeck)
     }
 }
 
-export const createStartingPermutation = (n: number): Permutation => {
-    const permutation: number[] = []
+export const createStartingDeck = (n: number): Deck => {
+    const result: number[] = []
     for (let i = 0; i < n; i++) {
-        permutation.push(i)
+        result.push(i)
     }
-    return permutation
+    return result
 }
 
-type Permutation = ReadonlyArray<number>
-export type Shuffle = (permutation: Permutation) => Permutation
+type Deck = ReadonlyArray<number>
+export type Shuffle = (deck: Deck) => Deck
 export type RNG = () => number

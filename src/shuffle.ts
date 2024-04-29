@@ -1,15 +1,19 @@
 import { encodePermutation } from './permutation-encoder'
 
-export const createOverhandShuffle = (): Shuffle => (permutation => {
+export interface ShuffleOptions {
+    repetitionCount?: number
+}
+
+export type ShuffleFactory = (options: ShuffleOptions) => Shuffle
+
+export const createOverhandShuffle: ShuffleFactory = ({ repetitionCount = 30 }) => (permutation => {
     return permutation
 })
 
-export const createRiffleShuffle = ({
-                                        repetitionCount = 7,
-                                        splitUncertaintyOffset = 2,
-                                        riffleUncertainty = 2
-                                    } = {}): Shuffle => {
+export const createRiffleShuffle: ShuffleFactory = ({ repetitionCount = 2 }) => {
     const riffle = (deck: Deck): Deck => {
+        const splitUncertaintyOffset = 2
+        const riffleUncertainty = 2
         let [left, right] = splitDeckWithUncertainty(deck, splitUncertaintyOffset)
 
         const result: Deck = []
@@ -18,7 +22,7 @@ export const createRiffleShuffle = ({
             let leftBottom: number[]
             let rightBottom: number[]
             [left, leftBottom] = splitDeck(left, random(-riffleUncertainty, 1));
-            [right, rightBottom] = splitDeck(right, random(-riffleUncertainty, 1));
+            [right, rightBottom] = splitDeck(right, random(-riffleUncertainty, 1))
             result.push(...leftBottom, ...rightBottom)
         }
 

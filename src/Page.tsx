@@ -1,6 +1,8 @@
 import React, { FC, useCallback, useEffect, useState } from 'react'
 import { PauseIcon, PlayIcon, StopIcon } from '@heroicons/react/24/solid'
-import { convertShuffleToRNG, createOverhandShuffle, createRiffleShuffle, Shuffle } from './shuffle'
+import {
+    convertShuffleToRNG, createOverhandShuffle, createRiffleShuffle, ShuffleFactory,
+} from './shuffle'
 import { factorial } from './utils'
 
 const deckSize = 10
@@ -12,13 +14,14 @@ console.log(`Canvas size: ${canvasSize}`)
 
 type ShuffleName = 'Riffle' | 'Overhand'
 
-const shuffleAlgorithms: Record<ShuffleName, Shuffle> = {
-    Riffle: createRiffleShuffle(),
-    Overhand: createOverhandShuffle(),
+const shuffleFactories: Record<ShuffleName, ShuffleFactory> = {
+    Riffle: createRiffleShuffle,
+    Overhand: createOverhandShuffle,
 }
 
 export const Page: FC = () => {
-    const [shuffleName, setShuffleName] = useState<ShuffleName>(Object.keys(shuffleAlgorithms)[0] as ShuffleName)
+    const [repetitionCount, setRepetitionCount] = useState(7)
+    const [shuffleName, setShuffleName] = useState<ShuffleName>(Object.keys(shuffleFactories)[0] as ShuffleName)
     const [playing, setPlaying] = useState(false)
     const [dotCount, setDotCount] = useState(0)
 
@@ -34,7 +37,7 @@ export const Page: FC = () => {
         setPlaying(false)
         setDotCount(0)
         clearCanvas()
-    }, [])
+    }, [clearCanvas])
 
     const drawPixelDot = useCallback((x: number, y: number) => {
         if (ctx === undefined) return
@@ -47,7 +50,7 @@ export const Page: FC = () => {
 
         if (!playing) return
 
-        const shuffle = shuffleAlgorithms[shuffleName]
+        const shuffle = shuffleFactories[shuffleName]({ repetitionCount })
         const rng = convertShuffleToRNG(shuffle, deckSize)
 
         const intervalId = setInterval(() => {
@@ -58,22 +61,32 @@ export const Page: FC = () => {
         })
 
         return () => clearInterval(intervalId)
-    }, [ctx, playing, shuffleName])
+    }, [ctx, playing, shuffleName, repetitionCount])
 
     return <div className='grow flex flex-col items-center p-4'>
         <div className='flex flex-col gap-2'>
             <div className='flex items-center gap-1'>
+                <input
+                    type='number'
+                    className='input'
+                    value={repetitionCount}
+                    onChange={({ target: { valueAsNumber } }) => {
+                        const normalizedValue = Math.max(isNaN(valueAsNumber) ? 1 : valueAsNumber, 0)
+                        setRepetitionCount(normalizedValue)
+                        stop()
+                    }}
+                />
                 <select
                     className='select'
                     value={shuffleName}
                     onChange={({ target: { value } }) => {
-                        stop()
                         setShuffleName(value as ShuffleName)
+                        stop()
                     }}
                 >
                     {
                         Object
-                            .keys(shuffleAlgorithms)
+                            .keys(shuffleFactories)
                             .map(name => <option key={name} value={name}>{name}</option>)
                     }
                 </select>

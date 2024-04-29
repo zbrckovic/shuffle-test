@@ -1,4 +1,4 @@
-export const encodePermutation = (permutation: number[]): number => {
+export const encodePermutation = (permutation: ReadonlyArray<number>): number => {
     const n = permutation.length
     if (n <= 1) return 0
     const [first, ...rest] = permutation

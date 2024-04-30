@@ -23,7 +23,7 @@ export const createOverhandShuffle = (
 ): Shuffle =>
     createRepetitiveShuffle(
         deck => {
-            let topHand: Deck = deck
+            let topHand: Deck = [...deck]
             const bottomHand: Deck = []
 
             while (topHand.length > 0) {

@@ -9,6 +9,15 @@ export interface BaseShuffleOptions {
 }
 
 // region Helper functions
+export const createRepetitiveShuffle = (shuffle: Shuffle, repetitionCount: number): Shuffle =>
+    (deck: Deck) => {
+        let result = deck
+        for (let i = 0; i < repetitionCount; i++) {
+            result = shuffle(result)
+        }
+        return result
+    }
+
 export const convertShuffleToRNG = (shuffle: Shuffle, n: number): RNG => {
     const startingDeck = createStartingDeck(n)
 
@@ -36,9 +45,7 @@ export const splitDeckWithUncertainty = (
     return splitDeck(deck, splitPoint)
 }
 
-export const splitDeck = (deck: Deck, i: number): [Deck, Deck] => {
-    return [deck.slice(0, i), deck.slice(i)]
-}
+export const splitDeck = (deck: Deck, i: number): [Deck, Deck] => [deck.slice(0, i), deck.slice(i)]
 
 export const random = (from: number, to: number): number => {
     const range = to - from

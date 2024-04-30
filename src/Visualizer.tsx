@@ -1,78 +1,103 @@
-import React, { type FC, useCallback, useEffect, useState } from 'react'
+import React, {
+    forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState
+} from 'react'
 import { factorial, usePrevious } from './utils'
 import { convertShuffleToRNG, type Shuffle } from './shuffle/common'
 
-const deckSize = 10
-const permutationCount = factorial(deckSize)
-const canvasSize = Math.ceil(Math.sqrt(permutationCount))
-console.log(`Deck size: ${deckSize}`)
-console.log(`Permutations: ${permutationCount}`)
-console.log(`Canvas size: ${canvasSize}`)
-
 interface Props {
+    deckSize: number
     shuffle?: Shuffle
     playing: boolean
     shuffleCountLimit: number
     onShuffle: () => void
 }
 
-export const Visualizer: FC<Props> = ({ shuffle, playing, onShuffle }) => {
-    const [ctx, setCtx] = useState<CanvasRenderingContext2D>()
+export interface VisualizerHandle {
+    download: () => void
+}
 
+const canvasSize = 1900
+
+export const Visualizer = forwardRef<VisualizerHandle, Props>((
+    {
+        deckSize,
+        shuffle,
+        playing,
+        onShuffle
+    },
+    ref
+) => {
+    const [canvasEl, setCanvasEl] = useState<HTMLCanvasElement | null>(null)
+    const ctx: CanvasRenderingContext2D | undefined = useMemo(
+        () => canvasEl?.getContext('2d') ?? undefined,
+        [canvasEl]
+    )
     const prevShuffle = usePrevious(shuffle)
     const isShuffleNew = prevShuffle !== shuffle
 
-    const clearCanvas = useCallback(() => {
+    useImperativeHandle(ref, (): VisualizerHandle => ({
+        download: () => {
+            if (canvasEl === null) return
+            const link = document.createElement('a');
+            link.download = 'filename.png';
+            link.href = canvasEl.toDataURL()
+            link.click();
+        }
+    }), [canvasEl])
+
+    const graphSize = useMemo(() => {
+        const permutationCount = factorial(deckSize)
+        return Math.ceil(Math.sqrt(permutationCount))
+    }, [deckSize])
+
+    const convertNumberToCanvasCoords = useCallback((n: number): [number, number] => {
+        const x = n % graphSize
+        const y = Math.floor(n / graphSize)
+        return [(x / graphSize) * canvasSize, (y / graphSize) * canvasSize]
+    }, [graphSize])
+
+    useEffect(() => {
         if (ctx === undefined) return
         ctx.fillStyle = 'white'
         ctx.fillRect(0, 0, canvasSize, canvasSize)
     }, [ctx])
 
-    const drawPixelDot = useCallback((x: number, y: number) => {
+    const drawMark = useCallback((x: number, y: number) => {
         if (ctx === undefined) return
-        ctx.fillStyle = 'rgba(255,0,0,0.5)'
+        ctx.fillStyle = 'rgba(0,0,0,0.1)'
         ctx.fillRect(x, y, 1, 1)
+        ctx.beginPath()
+        ctx.arc(x, y, 5, 0, 2 * Math.PI)
+        ctx.fill()
+        ctx.beginPath()
+        ctx.arc(x, y, 3, 0, 2 * Math.PI)
+        ctx.fill()
+        ctx.beginPath()
+        ctx.arc(x, y, 1, 0, 2 * Math.PI)
+        ctx.fill()
     }, [ctx])
 
     useEffect(() => {
-        if (shuffle === undefined) {
-            clearCanvas()
-            return
-        }
-
-        if (isShuffleNew) {
-            clearCanvas()
-        }
-
+        if (shuffle === undefined) return
         if (!playing) return
 
         const rng = convertShuffleToRNG(shuffle, deckSize)
 
         const intervalId = setInterval(() => {
             const n = rng()
-            const [x, y] = convertNumberToCoords(n)
-            drawPixelDot(x, y)
+            const [x, y] = convertNumberToCanvasCoords(n)
+            drawMark(x, y)
             onShuffle()
         })
 
         return () => { clearInterval(intervalId) }
-    }, [shuffle, playing, isShuffleNew, clearCanvas, drawPixelDot, onShuffle])
+    }, [shuffle, playing, isShuffleNew, drawMark, onShuffle])
 
     return <canvas
         className='border-solid border border-black'
         width={canvasSize}
         height={canvasSize}
-        ref={canvas => {
-            if (canvas === null) return
-            const ctx = canvas.getContext('2d')
-            if (ctx === null) return
-            setCtx(ctx)
-        }}
+        ref={setCanvasEl}
     />
-}
-
-const convertNumberToCoords = (n: number): [number, number] => {
-    const x = n % canvasSize
-    const y = Math.floor(n / canvasSize)
-    return [x, y]
-}
+})
+Visualizer.displayName = 'Visualizer'

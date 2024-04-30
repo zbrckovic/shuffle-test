@@ -1,5 +1,5 @@
-import React, { type FC, useCallback, useState } from 'react'
-import { PauseIcon, PlayIcon, StopIcon } from '@heroicons/react/24/solid'
+import React, { type FC, useCallback, useRef, useState } from 'react'
+import { ArrowDownTrayIcon, PauseIcon, PlayIcon, StopIcon } from '@heroicons/react/24/solid'
 import {
     createOverhandShuffle, createRiffleShuffle, type OverhandShuffleOptions,
     type RiffleShuffleOptions
@@ -8,25 +8,28 @@ import { type Shuffle } from './shuffle/common'
 import { Field, type FieldProps, Form, Formik, type FormikErrors } from 'formik'
 import { isInt } from 'validator'
 import { NumberField } from './components/NumberField'
-import { Visualizer } from './Visualizer'
+import { Visualizer, VisualizerHandle } from './Visualizer'
 
 type ShuffleName = 'Riffle' | 'Overhand'
 const shuffleNames: ShuffleName[] = ['Riffle', 'Overhand']
 
 const initialValue: FormModel = {
+    deckSize: '30',
     selectedShuffleName: 'Riffle',
-    shuffleCountLimit: '40000',
+    shuffleCountLimit: '50000',
     riffleShuffleOptions: {
         repetitionCount: '7',
         riffleUncertainty: '2',
         splitUncertaintyOffset: '2'
     },
     overhandShuffleOptions: {
-        repetitionCount: '7'
+        repetitionCount: '7',
+        pickUncertainty: '3'
     }
 }
 
 interface State {
+    deckSize: number
     shuffle: Shuffle
     playing: boolean
     shuffleCountLimit: number
@@ -35,6 +38,7 @@ interface State {
 
 export const Page: FC = () => {
     const [state, setState] = useState<State | undefined>()
+    const visualizerRef = useRef<VisualizerHandle>(null)
 
     const handleShuffle = useCallback(() => {
         setState(prev => {
@@ -57,7 +61,7 @@ export const Page: FC = () => {
             validateOnChange
         >
 
-            {({ values, errors, isValid, handleReset, handleSubmit }) => (
+            {({ values, isValid, handleReset, handleSubmit }) => (
                 <div className='flex flex-col'>
                     <Form
                         className='grid grid-cols-2 gap-4'
@@ -66,6 +70,11 @@ export const Page: FC = () => {
                     >
                         <div>
                             <h2 className='text-lg font-bold'>General options</h2>
+                            <NumberField
+                                name='deckSize'
+                                labelText='Deck size'
+                                disabled={state !== undefined}
+                            />
                             <Field name='selectedShuffleName'>
                                 {
                                     ({ field }: FieldProps<string>) => (
@@ -121,6 +130,22 @@ export const Page: FC = () => {
                                 />
                             </div>
                         }
+                        {
+                            values.selectedShuffleName === 'Overhand' &&
+                            <div>
+                                <h2 className='text-lg font-bold'>Overhand shuffle options</h2>
+                                <NumberField
+                                    name='overhandShuffleOptions.repetitionCount'
+                                    labelText='Repetition count'
+                                    disabled={state !== undefined}
+                                />
+                                <NumberField
+                                    name='overhandShuffleOptions.pickUncertainty'
+                                    labelText='Pick uncertainty'
+                                    disabled={state !== undefined}
+                                />
+                            </div>
+                        }
                     </Form>
                     <div className='flex items-center gap-4'>
                         <div className='join'>
@@ -131,6 +156,7 @@ export const Page: FC = () => {
                                     if (state === undefined) {
                                         const shuffle = createShuffleFunctionFromFormModel(values)
                                         setState({
+                                            deckSize: parseInt(values.deckSize),
                                             shuffle,
                                             playing: true,
                                             shuffleCountLimit: parseInt(values.shuffleCountLimit),
@@ -157,6 +183,11 @@ export const Page: FC = () => {
                             >
                                 <StopIcon className='w-6' />
                             </button>
+                            <button className='btn join-item' onClick={() => {
+                                visualizerRef.current?.download()
+                            }}>
+                                <ArrowDownTrayIcon className='w-6' />
+                            </button>
                         </div>
                         {
                             state !== undefined &&
@@ -171,12 +202,13 @@ export const Page: FC = () => {
         </Formik>
         {
             state !== undefined &&
-            <Visualizer {...state} onShuffle={handleShuffle} />
+            <Visualizer ref={visualizerRef} {...state} onShuffle={handleShuffle} />
         }
     </div>
 }
 
 interface FormModel {
+    deckSize: string
     selectedShuffleName: ShuffleName
     shuffleCountLimit: string
     riffleShuffleOptions: { [K in keyof RiffleShuffleOptions]: string }
@@ -185,12 +217,17 @@ interface FormModel {
 
 const validateFormValues = (
     {
+        deckSize,
         shuffleCountLimit,
         riffleShuffleOptions,
         overhandShuffleOptions
     }: FormModel
 ): FormikErrors<FormModel> => {
     const errors: FormikErrors<FormModel> = {}
+
+    if (!isInt(deckSize, { min: 1 })) {
+        errors.deckSize = 'Must be a natural number'
+    }
 
     if (!isInt(shuffleCountLimit, { min: 1 })) {
         errors.shuffleCountLimit = 'Must be a natural number'
@@ -216,6 +253,11 @@ const validateFormValues = (
         errors.overhandShuffleOptions.repetitionCount = 'Must be a natural number'
     }
 
+    if (!isInt(overhandShuffleOptions.pickUncertainty, { min: 1 })) {
+        if (errors.overhandShuffleOptions === undefined) errors.overhandShuffleOptions = {}
+        errors.overhandShuffleOptions.pickUncertainty = 'Must be a natural number'
+    }
+
     return errors
 }
 
@@ -237,7 +279,8 @@ const createShuffleFunctionFromFormModel = (
         }
         case 'Overhand': {
             const options: OverhandShuffleOptions = {
-                repetitionCount: parseInt(overhandShuffleOptions.repetitionCount)
+                repetitionCount: parseInt(overhandShuffleOptions.repetitionCount),
+                pickUncertainty: parseInt(overhandShuffleOptions.pickUncertainty)
             }
             return createOverhandShuffle(options)
         }

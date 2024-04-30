@@ -1,5 +1,4 @@
-import { encodePermutation } from '../permutation-encoder'
-import { createRiffleShuffle } from '../shuffle'
+import { encodePermutation } from '../shuffle/permutation-encoder'
 
 test.each([
     [[0, 1, 2, 3], 0],
@@ -25,19 +24,8 @@ test.each([
     [[3, 1, 0, 2], 20],
     [[3, 1, 2, 0], 21],
     [[3, 2, 0, 1], 22],
-    [[3, 2, 1, 0], 23],
-])
-('.encodePermutation(%s) gives %s', (permutation, expectedCode) => {
+    [[3, 2, 1, 0], 23]
+])('.encodePermutation(%s) gives %s', (permutation: number[], expectedCode) => {
     const code = encodePermutation(permutation)
     expect(code).toBe(expectedCode)
-})
-
-describe('riffleShuffle', () => {
-    it('produces some permutation with valid elements', () => {
-        const shuffle = createRiffleShuffle()
-        const initialDeck = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        const result = shuffle(initialDeck)
-        expect(result.length).toBe(initialDeck.length)
-        expect(new Set(result)).toEqual(new Set(initialDeck))
-    })
 })

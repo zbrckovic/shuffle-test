@@ -1,125 +1,245 @@
-import React, { FC, useCallback, useEffect, useState } from 'react'
+import React, { type FC, useCallback, useState } from 'react'
 import { PauseIcon, PlayIcon, StopIcon } from '@heroicons/react/24/solid'
 import {
-    convertShuffleToRNG, createOverhandShuffle, createRiffleShuffle, ShuffleFactory,
+    createOverhandShuffle, createRiffleShuffle, type OverhandShuffleOptions,
+    type RiffleShuffleOptions
 } from './shuffle'
-import { factorial } from './utils'
-
-const deckSize = 10
-const permutationCount = factorial(deckSize)
-const canvasSize = Math.ceil(Math.sqrt(permutationCount))
-console.log(`Deck size: ${deckSize}`)
-console.log(`Permutations: ${permutationCount}`)
-console.log(`Canvas size: ${canvasSize}`)
+import { type Shuffle } from './shuffle/common'
+import { Field, type FieldProps, Form, Formik, type FormikErrors } from 'formik'
+import { isInt } from 'validator'
+import { NumberField } from './components/NumberField'
+import { Visualizer } from './Visualizer'
 
 type ShuffleName = 'Riffle' | 'Overhand'
+const shuffleNames: ShuffleName[] = ['Riffle', 'Overhand']
 
-const shuffleFactories: Record<ShuffleName, ShuffleFactory> = {
-    Riffle: createRiffleShuffle,
-    Overhand: createOverhandShuffle,
+const initialValue: FormModel = {
+    selectedShuffleName: 'Riffle',
+    shuffleCountLimit: '40000',
+    riffleShuffleOptions: {
+        repetitionCount: '7',
+        riffleUncertainty: '2',
+        splitUncertaintyOffset: '2'
+    },
+    overhandShuffleOptions: {
+        repetitionCount: '7'
+    }
+}
+
+interface State {
+    shuffle: Shuffle
+    playing: boolean
+    shuffleCountLimit: number
+    shuffleCount: number
 }
 
 export const Page: FC = () => {
-    const [repetitionCount, setRepetitionCount] = useState(7)
-    const [shuffleName, setShuffleName] = useState<ShuffleName>(Object.keys(shuffleFactories)[0] as ShuffleName)
-    const [playing, setPlaying] = useState(false)
-    const [dotCount, setDotCount] = useState(0)
+    const [state, setState] = useState<State | undefined>()
 
-    const [ctx, setCtx] = useState<CanvasRenderingContext2D>()
-
-    const clearCanvas = useCallback(() => {
-        if (ctx === undefined) return
-        ctx.fillStyle = 'white'
-        ctx.fillRect(0, 0, canvasSize, canvasSize)
-    }, [ctx])
-
-    const stop = useCallback(() => {
-        setPlaying(false)
-        setDotCount(0)
-        clearCanvas()
-    }, [clearCanvas])
-
-    const drawPixelDot = useCallback((x: number, y: number) => {
-        if (ctx === undefined) return
-        ctx.fillStyle = 'rgba(255,0,0,0.5)'
-        ctx.fillRect(x, y, 1, 1)
-    }, [ctx])
-
-    useEffect(() => {
-        if (ctx === undefined) return
-
-        if (!playing) return
-
-        const shuffle = shuffleFactories[shuffleName]({ repetitionCount })
-        const rng = convertShuffleToRNG(shuffle, deckSize)
-
-        const intervalId = setInterval(() => {
-            const n = rng()
-            const [x, y] = convertNumberToCoords(n)
-            drawPixelDot(x, y)
-            setDotCount(prev => prev + 1)
+    const handleShuffle = useCallback(() => {
+        setState(prev => {
+            if (prev === undefined) return undefined
+            const newShuffleCount = prev.shuffleCount + 1
+            return {
+                ...prev,
+                shuffleCount: newShuffleCount,
+                playing: newShuffleCount < prev.shuffleCountLimit
+            }
         })
+    }, [])
 
-        return () => clearInterval(intervalId)
-    }, [ctx, playing, shuffleName, repetitionCount])
+    return <div className='grow flex flex-col p-4 gap-4'>
+        <Formik<FormModel>
+            initialValues={initialValue}
+            validate={validateFormValues}
+            onSubmit={() => {}} // nothing to do here
+            validateOnMount
+            validateOnChange
+        >
 
-    return <div className='grow flex flex-col items-center p-4'>
-        <div className='flex flex-col gap-2'>
-            <div className='flex items-center gap-1'>
-                <input
-                    type='number'
-                    className='input'
-                    value={repetitionCount}
-                    onChange={({ target: { valueAsNumber } }) => {
-                        const normalizedValue = Math.max(isNaN(valueAsNumber) ? 1 : valueAsNumber, 0)
-                        setRepetitionCount(normalizedValue)
-                        stop()
-                    }}
-                />
-                <select
-                    className='select'
-                    value={shuffleName}
-                    onChange={({ target: { value } }) => {
-                        setShuffleName(value as ShuffleName)
-                        stop()
-                    }}
-                >
-                    {
-                        Object
-                            .keys(shuffleFactories)
-                            .map(name => <option key={name} value={name}>{name}</option>)
-                    }
-                </select>
-                <button
-                    className='btn'
-                    onClick={() => setPlaying(prev => !prev)}
-                >
-                    {playing ? <PauseIcon className='w-6' /> : <PlayIcon className='w-6' />}
-                </button>
-                <button className='btn' onClick={stop}>
-                    <StopIcon className='w-6' />
-                </button>
-                <div className='ms-auto w-56'>
-                    <label className='font-bold'>Shuffle count:</label> <span>{dotCount}</span>
+            {({ values, errors, isValid, handleReset, handleSubmit }) => (
+                <div className='flex flex-col'>
+                    <Form
+                        className='grid grid-cols-2 gap-4'
+                        onReset={handleReset}
+                        onSubmit={handleSubmit}
+                    >
+                        <div>
+                            <h2 className='text-lg font-bold'>General options</h2>
+                            <Field name='selectedShuffleName'>
+                                {
+                                    ({ field }: FieldProps<string>) => (
+                                        <label className='form-control'>
+                                            <div className='label'>
+                                                <span className='label-text'>
+                                                    Shuffle algorithm
+                                                </span>
+                                            </div>
+                                            <select
+                                                className='select select-bordered'
+                                                disabled={state !== undefined}
+                                                {...field}
+                                            >
+                                                {
+                                                    shuffleNames.map(name =>
+                                                        <option key={name} value={name}>
+                                                            {name}
+                                                        </option>
+                                                    )
+                                                }
+                                            </select>
+                                            <div className='label'>
+                                                <span className='h-4' />
+                                            </div>
+                                        </label>
+                                    )}
+                            </Field>
+                            <NumberField
+                                name='shuffleCountLimit'
+                                labelText='Max shuffle count'
+                                disabled={state !== undefined}
+                            />
+                        </div>
+                        {
+                            values.selectedShuffleName === 'Riffle' &&
+                            <div>
+                                <h2 className='text-lg font-bold'>Riffle shuffle options</h2>
+                                <NumberField
+                                    name='riffleShuffleOptions.repetitionCount'
+                                    labelText='Repetition count'
+                                    disabled={state !== undefined}
+                                />
+                                <NumberField
+                                    name='riffleShuffleOptions.riffleUncertainty'
+                                    labelText='Riffle uncertainty'
+                                    disabled={state !== undefined}
+                                />
+                                <NumberField
+                                    name='riffleShuffleOptions.splitUncertaintyOffset'
+                                    labelText='Split uncertainty'
+                                    disabled={state !== undefined}
+                                />
+                            </div>
+                        }
+                    </Form>
+                    <div className='flex items-center gap-4'>
+                        <div className='join'>
+                            <button
+                                className='btn join-item'
+                                disabled={!isValid}
+                                onClick={() => {
+                                    if (state === undefined) {
+                                        const shuffle = createShuffleFunctionFromFormModel(values)
+                                        setState({
+                                            shuffle,
+                                            playing: true,
+                                            shuffleCountLimit: parseInt(values.shuffleCountLimit),
+                                            shuffleCount: 0
+                                        })
+                                    } else {
+                                        const didReachLimit = state.shuffleCount >= state.shuffleCountLimit
+                                        setState({
+                                            ...state, playing: !didReachLimit && !state.playing
+                                        })
+                                    }
+                                }}
+                            >
+                                {
+                                    (state === undefined || !state.playing)
+                                        ? <PlayIcon className='w-6' />
+                                        : <PauseIcon className='w-6' />
+                                }
+                            </button>
+                            <button
+                                className='btn join-item'
+                                disabled={state === undefined}
+                                onClick={() => { setState(undefined) }}
+                            >
+                                <StopIcon className='w-6' />
+                            </button>
+                        </div>
+                        {
+                            state !== undefined &&
+                            <div className='flex'>
+                                <div className='min-w-10 text-end'>{state.shuffleCount}</div>
+                                / {state.shuffleCountLimit}
+                            </div>
+                        }
+                    </div>
                 </div>
-            </div>
-            <canvas
-                className='border-solid border border-black'
-                width={canvasSize}
-                height={canvasSize}
-                ref={canvas => {
-                    if (canvas === null) return
-                    const ctx = canvas.getContext('2d')
-                    if (ctx === null) return
-                    setCtx(ctx)
-                }}
-            />
-        </div>
+            )}
+        </Formik>
+        {
+            state !== undefined &&
+            <Visualizer {...state} onShuffle={handleShuffle} />
+        }
     </div>
 }
 
-const convertNumberToCoords = (n: number): [number, number] => {
-    const x = n % canvasSize
-    const y = Math.floor(n / canvasSize)
-    return [x, y]
+interface FormModel {
+    selectedShuffleName: ShuffleName
+    shuffleCountLimit: string
+    riffleShuffleOptions: { [K in keyof RiffleShuffleOptions]: string }
+    overhandShuffleOptions: { [K in keyof OverhandShuffleOptions]: string }
+}
+
+const validateFormValues = (
+    {
+        shuffleCountLimit,
+        riffleShuffleOptions,
+        overhandShuffleOptions
+    }: FormModel
+): FormikErrors<FormModel> => {
+    const errors: FormikErrors<FormModel> = {}
+
+    if (!isInt(shuffleCountLimit, { min: 1 })) {
+        errors.shuffleCountLimit = 'Must be a natural number'
+    }
+
+    if (!isInt(riffleShuffleOptions.repetitionCount, { min: 1 })) {
+        if (errors.riffleShuffleOptions === undefined) errors.riffleShuffleOptions = {}
+        errors.riffleShuffleOptions.repetitionCount = 'Must be a natural number'
+    }
+
+    if (!isInt(riffleShuffleOptions.riffleUncertainty, { min: 1 })) {
+        if (errors.riffleShuffleOptions === undefined) errors.riffleShuffleOptions = {}
+        errors.riffleShuffleOptions.riffleUncertainty = 'Must be a natural number'
+    }
+
+    if (!isInt(riffleShuffleOptions.splitUncertaintyOffset, { min: 1 })) {
+        if (errors.riffleShuffleOptions === undefined) errors.riffleShuffleOptions = {}
+        errors.riffleShuffleOptions.splitUncertaintyOffset = 'Must be a natural number'
+    }
+
+    if (!isInt(overhandShuffleOptions.repetitionCount, { min: 1 })) {
+        if (errors.overhandShuffleOptions === undefined) errors.overhandShuffleOptions = {}
+        errors.overhandShuffleOptions.repetitionCount = 'Must be a natural number'
+    }
+
+    return errors
+}
+
+const createShuffleFunctionFromFormModel = (
+    {
+        selectedShuffleName,
+        riffleShuffleOptions,
+        overhandShuffleOptions
+    }: FormModel
+): Shuffle => {
+    switch (selectedShuffleName) {
+        case 'Riffle': {
+            const options: RiffleShuffleOptions = {
+                repetitionCount: parseInt(riffleShuffleOptions.repetitionCount),
+                riffleUncertainty: parseInt(riffleShuffleOptions.riffleUncertainty),
+                splitUncertaintyOffset: parseInt(riffleShuffleOptions.splitUncertaintyOffset)
+            }
+            return createRiffleShuffle(options)
+        }
+        case 'Overhand': {
+            const options: OverhandShuffleOptions = {
+                repetitionCount: parseInt(overhandShuffleOptions.repetitionCount)
+            }
+            return createOverhandShuffle(options)
+        }
+    }
 }

@@ -23,18 +23,17 @@ export const createOverhandShuffle = (
 ): Shuffle =>
     createRepetitiveShuffle(
         deck => {
-            let leftHand: Deck = deck
-            let rightHand: Deck = []
+            let topHand: Deck = deck
+            const bottomHand: Deck = []
 
-            while (leftHand.length > 0) {
+            while (topHand.length > 0) {
                 let rightHandAddition
-                [leftHand, rightHandAddition] = splitDeck(leftHand, random(-pickUncertainty, 0))
-                console.log(leftHand)
-                rightHand.push(...rightHandAddition)
+                [topHand, rightHandAddition] = splitDeck(topHand, random(-pickUncertainty, 0))
+                console.log(topHand)
+                bottomHand.push(...rightHandAddition)
             }
 
-            return rightHand
+            return bottomHand
         },
         repetitionCount
     )
-
